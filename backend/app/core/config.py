@@ -8,11 +8,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     debug: bool = True
 
-    database_url: str | None = None
-
-    openai_api_key: str | None = None
-    embedding_model: str = "text-embedding-3-small"
-    chat_model: str | None = None
+    database_url: str
 
     frontend_url: str = "http://localhost:3000"
 
@@ -26,4 +22,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return Settings() # type: ignore[call-arg]
