@@ -30,8 +30,12 @@ def run() -> int:
             total_chunks = 0
 
             for result in results:
-                total_chunks += (
-                    result.chunks_created
+                total_chunks += result.chunks_created
+
+                print(
+                    f"{result.title}: "
+                    f"{result.chunks_created} created, "
+                    f"{result.chunks_skipped} skipped"
                 )
 
                 print(

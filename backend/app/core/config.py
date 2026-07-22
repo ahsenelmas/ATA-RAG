@@ -10,6 +10,13 @@ class Settings(BaseSettings):
 
     database_url: str
 
+    embedding_provider: str = "local"
+    embedding_model: str = (
+        "sentence-transformers/"
+        "paraphrase-multilingual-MiniLM-L12-v2"
+    )
+    embedding_dimensions: int = 384
+
     frontend_url: str = "http://localhost:3000"
 
     model_config = SettingsConfigDict(
@@ -22,4 +29,4 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings() # type: ignore[call-arg]
+    return Settings()  # type: ignore[call-arg]
