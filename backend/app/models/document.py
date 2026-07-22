@@ -3,10 +3,10 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-
+from app.models.chunk import Chunk
 
 class Document(Base):
     __tablename__ = "documents"
@@ -62,4 +62,9 @@ class Document(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+    chunks: Mapped[list["Chunk"]] = relationship( # type: ignore
+        back_populates="document",
+        cascade="all, delete-orphan",
     )
