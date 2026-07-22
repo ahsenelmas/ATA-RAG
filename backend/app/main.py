@@ -7,6 +7,9 @@ from app.api.routes.documents import router as documents_router
 from app.api.routes.chunks import (
     router as chunks_router,
 )
+from app.api.routes.chat import (
+    router as chat_router,
+)
 
 settings = get_settings()
 
@@ -28,6 +31,9 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(documents_router)
 app.include_router(chunks_router)
+app.include_router(
+    chat_router
+)
 
 @app.get("/")
 async def root() -> dict[str, str]:

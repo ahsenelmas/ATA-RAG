@@ -181,9 +181,9 @@ def calculate_lexical_bonus(
             continue
 
         if canonical_city in normalized_content:
-            bonus += 0.10
+            bonus += 0.12
         else:
-            bonus -= 0.04
+            bonus -= 0.20
 
     specialisation_aliases = {
         "sztuczna inteligencja": {
