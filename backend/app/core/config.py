@@ -17,7 +17,10 @@ class Settings(BaseSettings):
     )
     embedding_dimensions: int = 384
 
-    frontend_url: str = "http://localhost:3000"
+    cors_origins: str = (
+        "http://localhost:3000,"
+        "http://127.0.0.1:3000"
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -25,6 +28,14 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [
+            origin.strip().rstrip("/")
+            for origin in self.cors_origins.split(",")
+            if origin.strip()
+        ]
 
 
 @lru_cache
