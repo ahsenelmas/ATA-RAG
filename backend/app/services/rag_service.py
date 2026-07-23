@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from urllib.parse import urldefrag
 
+from langsmith import traceable
 from sqlalchemy.orm import Session
 
 from app.services.embedding_service import (
@@ -9,7 +10,9 @@ from app.services.embedding_service import (
 from app.services.language_service import (
     detect_language,
 )
-from app.services.llm_service import LLMService
+from app.services.llm_service import (
+    LLMService,
+)
 from app.services.retrieval_service import (
     RetrievedChunk,
     retrieve_chunks,
@@ -42,8 +45,19 @@ class RAGService:
         self.embedding_service = (
             embedding_service
         )
-        self.llm_service = llm_service
 
+        self.llm_service = (
+            llm_service
+        )
+
+    @traceable(
+        name="ata_rag_answer_question",
+        run_type="chain",
+        tags=[
+            "ata-rag",
+            "grounded-chat",
+        ],
+    )
     def answer_question(
         self,
         db: Session,
@@ -51,7 +65,9 @@ class RAGService:
         language: str | None = None,
         retrieval_limit: int = 5,
     ) -> RAGAnswer:
-        cleaned_question = question.strip()
+        cleaned_question = (
+            question.strip()
+        )
 
         if not cleaned_question:
             raise ValueError(
@@ -104,10 +120,16 @@ class RAGService:
             )
         )
 
-        user_prompt = self._build_user_prompt(
-            question=cleaned_question,
-            context=context,
-            language=answer_language,
+        user_prompt = (
+            self._build_user_prompt(
+                question=(
+                    cleaned_question
+                ),
+                context=context,
+                language=(
+                    answer_language
+                ),
+            )
         )
 
         answer = (
@@ -133,10 +155,10 @@ class RAGService:
         chunks: list[RetrievedChunk],
     ) -> list[RetrievedChunk]:
         """
-        Keep only candidates sufficiently close to the best result.
+        Keep candidates sufficiently close to the best result.
 
-        This prevents weaker related programmes or specialisations from
-        being included when one result is clearly more relevant.
+        This prevents weaker programmes or specialisations from entering
+        the final LLM context.
         """
         if not chunks:
             return []
@@ -158,12 +180,17 @@ class RAGService:
             for chunk in valid_chunks
         )
 
-        relative_threshold = best_score - 0.15
+        relative_threshold = (
+            best_score - 0.15
+        )
 
         focused_chunks = [
             chunk
             for chunk in valid_chunks
-            if chunk.final_score >= relative_threshold
+            if (
+                chunk.final_score
+                >= relative_threshold
+            )
         ]
 
         return focused_chunks[:3]
@@ -181,7 +208,9 @@ class RAGService:
             context_parts.append(
                 "\n".join(
                     [
-                        f"[SOURCE {index}]",
+                        (
+                            f"[SOURCE {index}]"
+                        ),
                         (
                             "Title: "
                             f"{chunk.document_title}"
@@ -190,7 +219,9 @@ class RAGService:
                             "Section: "
                             f"{chunk.section_title or 'N/A'}"
                         ),
-                        f"URL: {chunk.url}",
+                        (
+                            f"URL: {chunk.url}"
+                        ),
                         (
                             "Language: "
                             f"{chunk.language or 'unknown'}"
@@ -290,7 +321,9 @@ Answer the user using only the ATA source context above.
             if source_key in seen_urls:
                 continue
 
-            seen_urls.add(source_key)
+            seen_urls.add(
+                source_key
+            )
 
             sources.append(
                 RAGSource(

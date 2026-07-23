@@ -44,7 +44,7 @@ def get_statistics(
         )
 
         return DashboardStatisticsResponse(
-            **statistics
+            **statistics # type: ignore
         )
 
     except Exception as error:

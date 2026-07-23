@@ -3,9 +3,11 @@ from dataclasses import dataclass
 
 import httpx
 from dotenv import load_dotenv
+from langsmith import traceable
 
 
 load_dotenv()
+
 
 class LLMConfigurationError(RuntimeError):
     """Raised when required LLM settings are missing."""
@@ -25,9 +27,7 @@ class LLMSettings:
     max_tokens: int = 700
 
     @classmethod
-    def from_environment(
-        cls,
-    ) -> "LLMSettings":
+    def from_environment(cls) -> "LLMSettings":
         base_url = os.getenv(
             "LLM_BASE_URL",
             "",
@@ -88,6 +88,15 @@ class LLMService:
             or LLMSettings.from_environment()
         )
 
+    @traceable(
+        name="generate_grounded_answer",
+        run_type="llm",
+        tags=[
+            "ata-rag",
+            "groq",
+            "grounded-answer",
+        ],
+    )
     def generate_answer(
         self,
         system_prompt: str,
@@ -148,6 +157,11 @@ class LLMService:
                 "LLM provider returned "
                 f"HTTP {error.response.status_code}: "
                 f"{response_text}"
+            ) from error
+
+        except httpx.TimeoutException as error:
+            raise LLMRequestError(
+                "The LLM provider request timed out."
             ) from error
 
         except httpx.HTTPError as error:

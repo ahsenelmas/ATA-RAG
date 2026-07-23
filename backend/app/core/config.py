@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     app_env: str = "development"
     debug: bool = True
 
+    langsmith_tracing: bool = False
+    langsmith_api_key: str | None = None
+    langsmith_project: str = "ata-rag-development"
     database_url: str
 
     embedding_provider: str = "local"

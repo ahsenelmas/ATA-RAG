@@ -2,15 +2,20 @@ from dataclasses import dataclass
 import re
 import unicodedata
 
+from langsmith import traceable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.chunk import Chunk
 from app.models.document import Document
-from app.services.embedding_service import EmbeddingService
+from app.services.embedding_service import (
+    EmbeddingService,
+)
 
 
-def normalize_text(value: str | None) -> str:
+def normalize_text(
+    value: str | None,
+) -> str:
     """
     Normalize text for lexical comparison.
 
@@ -30,7 +35,9 @@ def normalize_text(value: str | None) -> str:
     without_accents = "".join(
         character
         for character in normalized
-        if not unicodedata.combining(character)
+        if not unicodedata.combining(
+            character
+        )
     )
 
     return re.sub(
@@ -44,10 +51,11 @@ def contains_term(
     text: str,
     term: str,
 ) -> bool:
-    """
-    Check whether a normalized term is present in normalized text.
-    """
-    return normalize_text(term) in normalize_text(text)
+    """Check whether a normalized term is present."""
+    return (
+        normalize_text(term)
+        in normalize_text(text)
+    )
 
 
 def calculate_lexical_bonus(
@@ -57,15 +65,22 @@ def calculate_lexical_bonus(
     content: str,
 ) -> float:
     """
-    Calculate an additional ranking score based on exact lexical signals.
+    Calculate an additional ranking score using exact lexical signals.
 
-    Vector similarity remains the primary ranking signal. This bonus helps
-    exact programme, city, tuition, and specialisation matches rank higher.
+    Vector similarity remains the primary ranking signal.
     """
-    normalized_query = normalize_text(query)
-    normalized_title = normalize_text(title)
-    normalized_section = normalize_text(section)
-    normalized_content = normalize_text(content)
+    normalized_query = normalize_text(
+        query
+    )
+    normalized_title = normalize_text(
+        title
+    )
+    normalized_section = normalize_text(
+        section
+    )
+    normalized_content = normalize_text(
+        content
+    )
 
     bonus = 0.0
 
@@ -128,9 +143,13 @@ def calculate_lexical_bonus(
         },
     }
 
-    for canonical_programme, aliases in programme_aliases.items():
+    for (
+        canonical_programme,
+        aliases,
+    ) in programme_aliases.items():
         query_matches_programme = any(
-            normalize_text(alias) in normalized_query
+            normalize_text(alias)
+            in normalized_query
             for alias in aliases
         )
 
@@ -138,22 +157,34 @@ def calculate_lexical_bonus(
             continue
 
         section_matches_programme = any(
-            normalize_text(alias) in normalized_section
+            normalize_text(alias)
+            in normalized_section
             for alias in aliases
         )
 
         content_matches_programme = any(
-            normalize_text(alias) in normalized_content
+            normalize_text(alias)
+            in normalized_content
             for alias in aliases
         )
 
         exact_base_sections = {
-            f"czesne: {canonical_programme}",
-            f"tuition: {canonical_programme}",
+            (
+                "czesne: "
+                f"{canonical_programme}"
+            ),
+            (
+                "tuition: "
+                f"{canonical_programme}"
+            ),
         }
 
-        if normalized_section in exact_base_sections:
+        if (
+            normalized_section
+            in exact_base_sections
+        ):
             bonus += 0.22
+
         elif section_matches_programme:
             bonus += 0.10
 
@@ -171,16 +202,23 @@ def calculate_lexical_bonus(
         },
     }
 
-    for canonical_city, aliases in city_aliases.items():
+    for (
+        canonical_city,
+        aliases,
+    ) in city_aliases.items():
         query_matches_city = any(
-            normalize_text(alias) in normalized_query
+            normalize_text(alias)
+            in normalized_query
             for alias in aliases
         )
 
         if not query_matches_city:
             continue
 
-        if canonical_city in normalized_content:
+        if (
+            canonical_city
+            in normalized_content
+        ):
             bonus += 0.12
         else:
             bonus -= 0.20
@@ -214,29 +252,48 @@ def calculate_lexical_bonus(
         },
     }
 
-    requested_specialisations: set[str] = set()
+    requested_specialisations: set[
+        str
+    ] = set()
 
-    for canonical_specialisation, aliases in (
-        specialisation_aliases.items()
-    ):
-        if any(
-            normalize_text(alias) in normalized_query
+    for (
+        canonical_specialisation,
+        aliases,
+    ) in specialisation_aliases.items():
+        query_contains_specialisation = any(
+            normalize_text(alias)
+            in normalized_query
             for alias in aliases
-        ):
+        )
+
+        if query_contains_specialisation:
             requested_specialisations.add(
                 canonical_specialisation
             )
 
-    document_specialisations: set[str] = set()
+    document_specialisations: set[
+        str
+    ] = set()
 
-    for canonical_specialisation, aliases in (
-        specialisation_aliases.items()
-    ):
-        if any(
-            normalize_text(alias) in normalized_section
-            or normalize_text(alias) in normalized_content
-            for alias in aliases
-        ):
+    for (
+        canonical_specialisation,
+        aliases,
+    ) in specialisation_aliases.items():
+        document_contains_specialisation = (
+            any(
+                (
+                    normalize_text(alias)
+                    in normalized_section
+                )
+                or (
+                    normalize_text(alias)
+                    in normalized_content
+                )
+                for alias in aliases
+            )
+        )
+
+        if document_contains_specialisation:
             document_specialisations.add(
                 canonical_specialisation
             )
@@ -247,22 +304,39 @@ def calculate_lexical_bonus(
             & document_specialisations
         ):
             bonus += 0.20
+
         elif document_specialisations:
             bonus -= 0.10
+
     elif document_specialisations:
         bonus -= 0.08
 
     base_programme_query = (
         "informatyka" in normalized_query
-        or "computer engineering" in normalized_query
-        or "computer science" in normalized_query
+        or (
+            "computer engineering"
+            in normalized_query
+        )
+        or (
+            "computer science"
+            in normalized_query
+        )
     )
 
-    base_informatics_section = normalized_section in {
-        "czesne: informatyka",
-        "tuition: computer engineering",
-        "tuition: computer science",
-    }
+    base_informatics_section = (
+        normalized_section
+        in {
+            "czesne: informatyka",
+            (
+                "tuition: "
+                "computer engineering"
+            ),
+            (
+                "tuition: "
+                "computer science"
+            ),
+        }
+    )
 
     if (
         base_programme_query
@@ -291,6 +365,15 @@ class RetrievedChunk:
     final_score: float
 
 
+@traceable(
+    name="retrieve_ata_chunks",
+    run_type="retriever",
+    tags=[
+        "ata-rag",
+        "pgvector",
+        "lexical-reranking",
+    ],
+)
 def retrieve_chunks(
     db: Session,
     question: str,
@@ -305,12 +388,13 @@ def retrieve_chunks(
     Retrieval process:
     1. Generate an embedding for the question.
     2. Retrieve a larger candidate pool using pgvector cosine distance.
-    3. Calculate lexical bonuses for exact programme, city, tuition,
-       and specialisation matches.
+    3. Calculate lexical bonuses.
     4. Sort candidates using the combined score.
     5. Apply per-document diversity limits.
     """
-    cleaned_question = question.strip()
+    cleaned_question = (
+        question.strip()
+    )
 
     if not cleaned_question:
         raise ValueError(
@@ -324,7 +408,8 @@ def retrieve_chunks(
 
     if max_chunks_per_document < 1:
         raise ValueError(
-            "max_chunks_per_document must be greater than zero."
+            "max_chunks_per_document must "
+            "be greater than zero."
         )
 
     normalized_language = (
@@ -380,7 +465,10 @@ def retrieve_chunks(
         )
         .join(
             Document,
-            Document.id == Chunk.document_id,
+            (
+                Document.id
+                == Chunk.document_id
+            ),
         )
         .where(
             Chunk.embedding.is_not(None)
@@ -397,7 +485,8 @@ def retrieve_chunks(
 
     candidate_limit = min(
         max(
-            limit * candidate_multiplier,
+            limit
+            * candidate_multiplier,
             20,
         ),
         300,
