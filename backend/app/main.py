@@ -12,6 +12,10 @@ from app.api.routes.chat import (
     router as chat_router,
 )
 
+from app.api.routes.dashboard import (
+    router as dashboard_router,
+)
+
 settings = get_settings()
 
 app = FastAPI(
@@ -36,6 +40,7 @@ app.include_router(documents_router)
 app.include_router(chunks_router)
 app.include_router(chat_router)
 app.include_router(feedback_router)
+app.include_router(dashboard_router)
 
 @app.get("/")
 async def root() -> dict[str, str]:

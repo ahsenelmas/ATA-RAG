@@ -64,7 +64,7 @@ def create_feedback(
     return FeedbackResponse(
         id=feedback.id,
         message_id=feedback.message_id,
-        rating=feedback.rating,
+        rating=feedback.rating, # type: ignore
         comment=feedback.comment,
         created_at=feedback.created_at,
     )
