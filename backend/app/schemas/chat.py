@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic import BaseModel, Field
 
 
@@ -22,19 +24,39 @@ class ChatRequest(BaseModel):
         default=5,
         ge=1,
         le=10,
+        description="Maximum number of retrieved context chunks.",
+    )
+
+    session_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "Optional conversation session identifier. "
+            "A new UUID is generated when omitted."
+        ),
     )
 
 
 class ChatSource(BaseModel):
     title: str
+
     section: str | None = None
+
     url: str
+
     similarity: float
+
     final_score: float
 
 
 class ChatResponse(BaseModel):
+    message_id: uuid.UUID
+
+    session_id: uuid.UUID
+
     answer: str
+
     language: str
+
     grounded: bool
+
     sources: list[ChatSource]
