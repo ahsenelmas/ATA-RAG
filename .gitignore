@@ -32,3 +32,6 @@ logs/
 # Operating system
 .DS_Store
 Thumbs.db
+
+evaluation/results/*.json
+evaluation/results/*.csv

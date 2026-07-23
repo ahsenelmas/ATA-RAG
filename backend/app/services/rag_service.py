@@ -17,7 +17,9 @@ from app.services.retrieval_service import (
     RetrievedChunk,
     retrieve_chunks,
 )
-
+from app.services.scope_service import (
+    is_clearly_out_of_scope,
+)
 
 @dataclass(slots=True)
 class RAGSource:
@@ -80,6 +82,27 @@ class RAGService:
                 cleaned_question
             )
         )
+
+        answer_language = (
+            language
+            or detect_language(
+                cleaned_question
+            )
+        )
+
+        if is_clearly_out_of_scope(
+            cleaned_question
+        ):
+            return RAGAnswer(
+                answer=(
+                    self._no_information_answer(
+                        answer_language
+                    )
+                ),
+                language=answer_language,
+                grounded=False,
+                sources=[],
+            )
 
         retrieved_chunks = retrieve_chunks(
             db=db,
