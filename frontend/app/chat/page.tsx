@@ -1,30 +1,26 @@
+import { Suspense } from "react";
+import ChatPageClient from "./ChatPageClient";
+
+function ChatLoading() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#fff7ed] via-white to-[#eff6ff]">
+      <div className="rounded-3xl border-2 border-orange-200 bg-white px-8 py-6 text-center shadow-xl">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500 text-xl text-white">
+          ✦
+        </div>
+
+        <p className="mt-4 font-bold text-[#0f172a]">
+          Loading ATA Assistant...
+        </p>
+      </div>
+    </main>
+  );
+}
+
 export default function ChatPage() {
-    return (
-        <main className="min-h-screen bg-gray-50 p-6">
-            <div className="mx-auto max-w-4xl">
-                <h1 className="text-3xl font-bold text-gray-900">ATA Chat</h1>
-
-                <div className="mt-6 min-h-[500px] rounded-xl border bg-white p-6">
-                    <p className="text-gray-500">
-                        Chat messages will appear here.
-                    </p>
-                </div>
-
-                <div className="mt-4 flex gap-3">
-                    <input
-                        type="text"
-                        placeholder="Ask a question about AkademiaTA..."
-                        className="flex-1 rounded-lg border px-4 py-3"
-                    />
-
-                    <button
-                        type="button"
-                        className="rounded-lg bg-gray-900 px-6 py-3 text-white"
-                    >
-                        Send
-                    </button>
-                </div>
-            </div>
-        </main>
-    );
+  return (
+    <Suspense fallback={<ChatLoading />}>
+      <ChatPageClient />
+    </Suspense>
+  );
 }
