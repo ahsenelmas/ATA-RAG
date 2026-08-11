@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import uuid
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.models.chunk import Chunk
@@ -40,7 +40,9 @@ def normalize_for_deduplication(
 
         cleaned_lines.append(line)
 
-    return " ".join(cleaned_lines).casefold()
+    return " ".join(
+        cleaned_lines
+    ).casefold()
 
 
 def is_low_value_chunk(
@@ -72,19 +74,75 @@ def is_low_value_chunk(
     )
 
     if (
-        normalized_title in low_value_titles
+        normalized_title
+        in low_value_titles
         and link_count >= 4
     ):
         return True
 
-    text_without_links = normalized_content
-
-    if link_count >= 8 and len(
-        text_without_links
-    ) < 800:
+    if (
+        link_count >= 8
+        and len(normalized_content) < 800
+    ):
         return True
 
     return False
+
+
+def _existing_chunks_are_current(
+    *,
+    db: Session,
+    document: Document,
+) -> tuple[bool, int]:
+    """
+    Check whether existing chunks were generated from
+    the current version of the document.
+
+    Returns:
+        (is_current, existing_chunk_count)
+    """
+    existing_chunk = db.scalar(
+        select(Chunk)
+        .where(
+            Chunk.document_id == document.id
+        )
+        .order_by(
+            Chunk.chunk_index.asc()
+        )
+        .limit(1)
+    )
+
+    if existing_chunk is None:
+        return False, 0
+
+    existing_chunk_count = (
+        db.scalar(
+            select(
+                func.count(Chunk.id)
+            ).where(
+                Chunk.document_id
+                == document.id
+            )
+        )
+        or 0
+    )
+
+    stored_hash = (
+        existing_chunk.chunk_metadata
+        or {}
+    ).get(
+        "document_content_hash"
+    )
+
+    is_current = (
+        stored_hash
+        == document.content_hash
+    )
+
+    return (
+        is_current,
+        int(existing_chunk_count),
+    )
 
 
 def create_chunks_for_document(
@@ -92,17 +150,41 @@ def create_chunks_for_document(
     document: Document,
     chunker: MarkdownChunker,
 ) -> ChunkIngestionResult:
-    generated_chunks = chunker.chunk_document(
-        document.markdown
+    (
+        chunks_are_current,
+        existing_chunk_count,
+    ) = _existing_chunks_are_current(
+        db=db,
+        document=document,
+    )
+
+    if chunks_are_current:
+        return ChunkIngestionResult(
+            document_id=str(
+                document.id
+            ),
+            title=document.title,
+            chunks_created=0,
+            chunks_skipped=(
+                existing_chunk_count
+            ),
+        )
+
+    generated_chunks = (
+        chunker.chunk_document(
+            document.markdown
+        )
     )
 
     db.execute(
         delete(Chunk).where(
-            Chunk.document_id == document.id
+            Chunk.document_id
+            == document.id
         )
     )
 
     seen_contents: set[str] = set()
+
     stored_index = 0
     skipped_count = 0
 
@@ -114,8 +196,10 @@ def create_chunks_for_document(
             skipped_count += 1
             continue
 
-        content_key = normalize_for_deduplication(
-            generated_chunk.content
+        content_key = (
+            normalize_for_deduplication(
+                generated_chunk.content
+            )
         )
 
         if not content_key:
@@ -126,14 +210,18 @@ def create_chunks_for_document(
             skipped_count += 1
             continue
 
-        seen_contents.add(content_key)
+        seen_contents.add(
+            content_key
+        )
 
         chunk = Chunk(
             document_id=document.id,
             section_title=(
                 generated_chunk.section_title
             ),
-            content=generated_chunk.content,
+            content=(
+                generated_chunk.content
+            ),
             chunk_index=stored_index,
             token_count=(
                 generated_chunk.token_count
@@ -147,16 +235,22 @@ def create_chunks_for_document(
                 ),
                 "language": document.language,
                 "source": "website",
+                "document_content_hash": (
+                    document.content_hash
+                ),
             },
         )
 
         db.add(chunk)
+
         stored_index += 1
 
     db.commit()
 
     return ChunkIngestionResult(
-        document_id=str(document.id),
+        document_id=str(
+            document.id
+        ),
         title=document.title,
         chunks_created=stored_index,
         chunks_skipped=skipped_count,
@@ -168,21 +262,28 @@ def create_chunks_for_all_documents(
     chunker: MarkdownChunker,
 ) -> list[ChunkIngestionResult]:
     documents = db.scalars(
-        select(Document).order_by(
+        select(Document)
+        .order_by(
             Document.created_at.asc()
         )
     ).all()
 
-    results: list[ChunkIngestionResult] = []
+    results: list[
+        ChunkIngestionResult
+    ] = []
 
     for document in documents:
-        result = create_chunks_for_document(
-            db=db,
-            document=document,
-            chunker=chunker,
+        result = (
+            create_chunks_for_document(
+                db=db,
+                document=document,
+                chunker=chunker,
+            )
         )
 
-        results.append(result)
+        results.append(
+            result
+        )
 
     return results
 
@@ -199,7 +300,8 @@ def create_chunks_for_document_id(
 
     if document is None:
         raise ValueError(
-            f"Document not found: {document_id}"
+            "Document not found: "
+            f"{document_id}"
         )
 
     return create_chunks_for_document(
